@@ -44,9 +44,9 @@ Interpreter** and choose `.venv\Scripts\python.exe` for this project.
 
 ## Playing
 
-Run `/arcade`, select a game, and choose another server member. Only that member can
-accept or decline. Accepting replaces the challenge with a board in the same
-message.
+Run `/arcade`, select a game, and choose another server member(if applicable). 
+Only that member can accept or decline. Accepting replaces the challenge with a 
+board in the same message.
 
 Challenges expire after two minutes. Games expire after five minutes without
 an interaction. Finished and expired games disable their buttons and release
@@ -63,10 +63,10 @@ discord-arcade-bot/
 ├── games/
 │   ├── __init__.py
 │   ├── arcade.py        # Owns /arcade and registers game commands
-│   ├── tictactoe.py     # Tic-tac-toe state and UI
+│   ├── tictactoe.py     # Tic-tac-toe board, winning lines, and button UI
 |   ├── minesweeper.py   # Currently empty; implement when needed
-|   ├── battleship.py    # Currently empty; implement when needed
-│   ├── connect4.py      # Connect 4 state and UI
+|   ├── battleship.py    # Battleship fleets, private setup, and shot UI
+│   ├── connect4.py      # Connect 4 gravity, full columns, and winning lines
 │   └── views.py         # Shared challenge and timeout handling
 ├── tests/
 │   └── ...              # Unit tests for games, config, and registration
@@ -93,3 +93,6 @@ reachable tic-tac-toe boards, competing button clicks, finished games, timeouts,
 failed message edits, configuration validation, and guild/global registration.
 Connect 4 tests cover all 69 winning lines for both colors, gravity, full columns,
 draws, player permissions, overlapping moves, and challenge/game cleanup.
+Battleship tests cover fleet placement, hidden boards, private setup, coordinate
+validation, hits and sinking, a complete game, stale shot forms, overlapping
+moves, timeouts, failed updates, and command registration.

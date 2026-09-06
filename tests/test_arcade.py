@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, Mock
 import discord
 
 from games.arcade import Arcade
-from games.connect4 import ChallengeView
+from games.connect4 import ChallengeView as Connect4ChallengeView
+from games.battleship import ChallengeView as BattleshipChallengeView
 
 
 class CommandTests(unittest.IsolatedAsyncioTestCase):
@@ -22,12 +23,12 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
     async def invoke(self):
         await self.cog.connect4.callback(self.cog, self.event, self.opponent)
 
-    async def test_connect4_sends_challenge_and_tracks_message(self):
+    async def test_sends_challenge_and_tracks_message(self):
         await self.invoke()
         sent = self.event.response.send_message.call_args.kwargs
         view = sent["view"]
         self.addCleanup(view.close)
-        self.assertIsInstance(view, ChallengeView)
+        self.assertIsInstance(view, Connect4ChallengeView)
         self.assertEqual(sent["embed"].title, "Connect 4 Challenge")
         self.assertIs(view.challenger, self.challenger)
         self.assertIs(view.opponent, self.opponent)
@@ -61,3 +62,19 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
             view = self.event.response.send_message.call_args.kwargs["view"]
             self.assertTrue(view.is_finished())
             self.assertTrue(all(button.disabled for button in view.children))
+
+
+class BattleshipCommandTests(CommandTests):
+    async def invoke(self):
+        await self.cog.battleship.callback(self.cog, self.event, self.opponent)
+
+    async def test_sends_challenge_and_tracks_message(self):
+        await self.invoke()
+        sent = self.event.response.send_message.call_args.kwargs
+        view = sent["view"]
+        self.addCleanup(view.close)
+        self.assertIsInstance(view, BattleshipChallengeView)
+        self.assertEqual(sent["embed"].title, "Battleship Challenge")
+        self.assertIs(view.challenger, self.challenger)
+        self.assertIs(view.opponent, self.opponent)
+        self.assertIs(view.message, self.event.original_response.return_value)
