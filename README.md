@@ -44,6 +44,10 @@ Interpreter** and choose `.venv\Scripts\python.exe` for this project.
 
 ## Playing
 
+Run `/arcade info` to post a directory of available games, grouped into
+**1v1 Activities** and **Solo Activities**. Currently, tic-tac-toe Connect 4,
+and Battleship are available as 1v1 games; solo activities are not available yet.
+
 Run `/arcade`, select a game, and choose another server member(if applicable). 
 Only that member can accept or decline. Accepting replaces the challenge with a 
 board in the same message.
@@ -57,19 +61,21 @@ start a new challenge after restarting.
 
 ```text
 discord-arcade-bot/
-├── main.py              # Entry point and logging configuration
-├── bot.py               # GameBot, extensions, command sync
-├── config.py            # Environment loading and validation
+├── main.py                    # Entry point and logging configuration
+├── bot.py                     # GameBot, extensions, command sync
+├── config.py                  # Environment loading and validation
 ├── games/
 │   ├── __init__.py
-│   ├── arcade.py        # Owns /arcade and registers game commands
-│   ├── tictactoe.py     # Tic-tac-toe board, winning lines, and button UI
-|   ├── minesweeper.py   # Currently empty; implement when needed
-|   ├── battleship.py    # Battleship fleets, private setup, and shot UI
-│   ├── connect4.py      # Connect 4 gravity, full columns, and winning lines
-│   └── views.py         # Shared challenge and timeout handling
+│   ├── arcade.py              # Owns /arcade and registers game commands
+│   ├── tictactoe.py           # Tic-tac-toe board, winning lines, and button UI
+|   ├── battleship.py          # Battleship fleets, private setup, and shot UI
+│   ├── connect4.py            # Connect 4 gravity, full columns, and winning lines
+|   ├── rockpaperscissors.py   # Currently empty; implement when needed
+|   ├── minesweeper.py         # Currently empty; implement when needed
+|   ├── wordle.py              # Currently empty; implement when needed
+│   └── views.py               # Shared challenge and timeout handling
 ├── tests/
-│   └── ...              # Unit tests for games, config, and registration
+│   └── ...                    # Unit tests for games, config, and registration
 ├── .env.example
 ├── .gitignore
 └── requirements.txt
@@ -78,6 +84,8 @@ discord-arcade-bot/
 Add new game commands to the `Arcade` cog in `games/arcade.py`, keeping their
 rules and views in their own game modules. If a game grows substantially,
 split that module into a package with `logic.py` and `views.py`.
+Set `extras={"activity": "1v1"}` or `extras={"activity": "solo"}` on each game’s
+`@app_commands.command` decorator to include it in `/arcade info`.
 
 Logs go to the console and `discord.log`. The file rotates at approximately
 5 MB with two backups; log files and local environment files are ignored by Git.

@@ -17,15 +17,37 @@ if TYPE_CHECKING:
 
 @app_commands.guild_only()
 class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade games"):
-    @app_commands.command(description="Challenge another member to tic-tac-toe.")
+    @app_commands.command(description="Show the bot's available /arcade commands.")
+    async def info(self, interaction: discord.Interaction) -> None:
+        embeds = []
+        for category, title, color in (
+            ("1v1", "⚔️ | 1v1 Activities", discord.Color.blurple()),
+            ("solo", "🗡️ | Solo Activities", discord.Color.teal()),
+        ):
+            commands = [
+                f"`/{command.qualified_name}`"
+                for command in self.walk_app_commands()
+                if command.extras.get("activity") == category
+            ]
+            embed = discord.Embed(
+                title=title,
+                description="\n".join(commands) or "No activities available in this category yet.",
+                color=color,
+            )
+            if category == "1v1":
+                embed.set_footer(text="Choose a command and an opponent to send a challenge.")
+            embeds.append(embed)
+        await interaction.response.send_message(embeds=embeds)
+
+    @app_commands.command(description="Challenge another member to tic-tac-toe.", extras={"activity": "1v1"})
     async def tictactoe(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
         await self._challenge(interaction, opponent, TicTacToeChallengeView, "Tic Tac Toe")
 
-    @app_commands.command(description="Challenge another member to Connect 4.")
+    @app_commands.command(description="Challenge another member to Connect 4.", extras={"activity": "1v1"})
     async def connect4(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
         await self._challenge(interaction, opponent, Connect4ChallengeView, "Connect 4")
 
-    @app_commands.command(description="Challenge another member to Battleship.")
+    @app_commands.command(description="Challenge another member to Battleship.", extras={"activity": "1v1"})
     async def battleship(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
         await self._challenge(interaction, opponent, BattleshipChallengeView, "Battleship")
 
