@@ -45,8 +45,9 @@ Interpreter** and choose `.venv\Scripts\python.exe` for this project.
 ## Playing
 
 Run `/arcade info` to post a directory of available games, grouped into
-**1v1 Activities** and **Solo Activities**. Currently, tic-tac-toe Connect 4,
-and Battleship are available as 1v1 games; solo activities are not available yet.
+**1v1 Activities** and **Solo Activities**. Currently, tic-tac-toe, Connect 4,
+Battleship, and Rock Paper Scissors are available as 1v1 games; solo activities
+are not available yet.
 
 Run `/arcade`, select a game, and choose another server member(if applicable). 
 Only that member can accept or decline. Accepting replaces the challenge with a 
@@ -70,7 +71,7 @@ discord-arcade-bot/
 │   ├── tictactoe.py           # Tic-tac-toe board, winning lines, and button UI
 |   ├── battleship.py          # Battleship fleets, private setup, and shot UI
 │   ├── connect4.py            # Connect 4 gravity, full columns, and winning lines
-|   ├── rockpaperscissors.py   # Currently empty; implement when needed
+|   ├── rockpaperscissors.py   # Hidden choices, buttons, and round results
 |   ├── minesweeper.py         # Currently empty; implement when needed
 |   ├── wordle.py              # Currently empty; implement when needed
 │   └── views.py               # Shared challenge and timeout handling
@@ -104,3 +105,5 @@ draws, player permissions, overlapping moves, and challenge/game cleanup.
 Battleship tests cover fleet placement, hidden boards, private setup, coordinate
 validation, hits and sinking, a complete game, stale shot forms, overlapping
 moves, timeouts, failed updates, and command registration.
+Rock Paper Scissors tests cover all nine outcomes, hidden and locked choices,
+player permissions, competing clicks, challenge cleanup, and failed updates.

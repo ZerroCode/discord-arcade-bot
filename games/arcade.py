@@ -9,6 +9,7 @@ from discord.ext import commands
 from games.tictactoe import ChallengeView as TicTacToeChallengeView
 from games.connect4 import ChallengeView as Connect4ChallengeView
 from games.battleship import ChallengeView as BattleshipChallengeView
+from games.rockpaperscissors import ChallengeView as RockPaperScissorsChallengeView
 from games.views import ChallengeView as BaseChallengeView
 
 if TYPE_CHECKING:
@@ -50,6 +51,10 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
     @app_commands.command(description="Challenge another member to Battleship.", extras={"activity": "1v1"})
     async def battleship(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
         await self._challenge(interaction, opponent, BattleshipChallengeView, "Battleship")
+
+    @app_commands.command(description="Challenge another member to Rock Paper Scissors.", extras={"activity": "1v1"})
+    async def rockpaperscissors(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
+        await self._challenge(interaction, opponent, RockPaperScissorsChallengeView, "Rock Paper Scissors")
 
     async def _challenge(
         self, interaction: discord.Interaction, opponent: discord.Member,

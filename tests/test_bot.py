@@ -19,6 +19,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                         self.assertIsNotNone(group.get_command("tictactoe"))
                         self.assertIsNotNone(group.get_command("connect4"))
                         self.assertIsNotNone(group.get_command("battleship"))
+                        self.assertIsNotNone(group.get_command("rockpaperscissors"))
                         if guild_id is not None:
                             self.assertIsNone(bot.tree.get_command("arcade"))
                         await bot.on_ready()

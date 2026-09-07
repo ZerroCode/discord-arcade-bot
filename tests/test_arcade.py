@@ -7,6 +7,7 @@ import discord
 from games.arcade import Arcade
 from games.connect4 import ChallengeView as Connect4ChallengeView
 from games.battleship import ChallengeView as BattleshipChallengeView
+from games.rockpaperscissors import ChallengeView as RockPaperScissorsChallengeView
 
 
 class CommandTests(unittest.IsolatedAsyncioTestCase):
@@ -33,6 +34,14 @@ class CommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(view.challenger, self.challenger)
         self.assertIs(view.opponent, self.opponent)
         self.assertIs(view.message, self.event.original_response.return_value)
+
+    async def test_info_lists_registered_games_in_their_categories(self):
+        await self.cog.info.callback(self.cog, self.event)
+        sent = self.event.response.send_message.call_args.kwargs
+        self.assertFalse(sent.get("ephemeral", False))
+        versus, solo = sent["embeds"]
+        self.assertIn("`/arcade rockpaperscissors`", versus.description)
+        self.assertNotIn("rockpaperscissors", solo.description)
 
     async def test_rejects_dm_self_and_bot_challenges(self):
         for invalid in ("dm", "self", "bot", "nonmember"):
@@ -75,6 +84,22 @@ class BattleshipCommandTests(CommandTests):
         self.addCleanup(view.close)
         self.assertIsInstance(view, BattleshipChallengeView)
         self.assertEqual(sent["embed"].title, "Battleship Challenge")
+        self.assertIs(view.challenger, self.challenger)
+        self.assertIs(view.opponent, self.opponent)
+        self.assertIs(view.message, self.event.original_response.return_value)
+
+
+class RockPaperScissorsCommandTests(CommandTests):
+    async def invoke(self):
+        await self.cog.rockpaperscissors.callback(self.cog, self.event, self.opponent)
+
+    async def test_sends_challenge_and_tracks_message(self):
+        await self.invoke()
+        sent = self.event.response.send_message.call_args.kwargs
+        view = sent["view"]
+        self.addCleanup(view.close)
+        self.assertIsInstance(view, RockPaperScissorsChallengeView)
+        self.assertEqual(sent["embed"].title, "Rock Paper Scissors Challenge")
         self.assertIs(view.challenger, self.challenger)
         self.assertIs(view.opponent, self.opponent)
         self.assertIs(view.message, self.event.original_response.return_value)
