@@ -77,6 +77,9 @@ discord-arcade-bot/
 │   └── views.py               # Shared challenge and timeout handling
 ├── data/
 │   └── wordle/                # Wordle official word lists and allowed guesses
+├── storage/
+│   ├── database.py            # Placeholder for reading and updating saved data
+│   └── arcade.sqlite3         # Local player database (ignored by Git)
 ├── .env.example
 ├── .gitignore
 └── requirements.txt
