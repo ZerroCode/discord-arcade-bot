@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+# Import the ChallengeView classes for each game
 from games.tictactoe import ChallengeView as TicTacToeChallengeView
 from games.connect4 import ChallengeView as Connect4ChallengeView
 from games.battleship import ChallengeView as BattleshipChallengeView
@@ -15,15 +16,17 @@ from games.views import ChallengeView as BaseChallengeView
 if TYPE_CHECKING:
     from bot import GameBot
 
-
+# This cog is the single owner of the /arcade command group. Add new game commands to this cog.
 @app_commands.guild_only()
 class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade games"):
+
+    # Arcade command to show available /arcade commands
     @app_commands.command(description="Show the bot's available /arcade commands.")
     async def info(self, interaction: discord.Interaction) -> None:
         embeds = []
         for category, title, color in (
             ("1v1", "⚔️ | 1v1 Activities", discord.Color.blurple()),
-            ("solo", "🗡️ | Solo Activities", discord.Color.teal()),
+            ("solo", "🗡️ | Solo Activities", discord.Color.blurple()),
         ):
             commands = [
                 f"`/{command.qualified_name}`"
@@ -40,6 +43,7 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
             embeds.append(embed)
         await interaction.response.send_message(embeds=embeds)
 
+    # 1v1 game commands
     @app_commands.command(description="Challenge another member to tic-tac-toe.", extras={"activity": "1v1"})
     async def tictactoe(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
         await self._challenge(interaction, opponent, TicTacToeChallengeView, "Tic Tac Toe")
