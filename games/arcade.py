@@ -14,6 +14,7 @@ from games.battleship import ChallengeView as BattleshipChallengeView
 from games.rockpaperscissors import ChallengeView as RockPaperScissorsChallengeView
 from games.views import ChallengeView as BaseChallengeView
 from games.wordle import WordleView
+from games.hangman import HangmanView
 
 if TYPE_CHECKING:
     from bot import GameBot
@@ -61,6 +62,24 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
         await self._challenge(interaction, opponent, RockPaperScissorsChallengeView, "Rock Paper Scissors")
 
     # Solo game commands
+    @app_commands.command(description="Play a solo game of Hangman.", extras={"activity": "solo"})
+    async def hangman(self, interaction: discord.Interaction) -> None:
+        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message("Start games in a server.", ephemeral=True)
+            return
+        try:
+            view = HangmanView(interaction.user)
+        except (OSError, ValueError):
+            logging.getLogger(__name__).exception("Could not load Hangman word list")
+            await interaction.response.send_message("Hangman's word list is unavailable. Please try again later.", ephemeral=True)
+            return
+        try:
+            await interaction.response.send_message(embed=view.make_embed(), view=view)
+            view.message = await interaction.original_response()
+        except Exception:
+            view.close()
+            raise
+
     @app_commands.command(description="Play a solo game of Wordle.", extras={"activity": "solo"})
     async def wordle(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
