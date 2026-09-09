@@ -3,12 +3,39 @@
 A Discord bot with challenges and interactive game boards.
 Requires Python 3.10 or newer; locally tested with Python 3.14.
 
-## Setup (Windows PowerShell)
+## Setup
+
+### Windows (PowerShell)
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
+```
+
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
+
+### macOS / Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+```bash
+python main.py
+```
+
+#### macOS certificate setup
+
+If Python was installed from python.org, install its trusted certificates once:
+
+```bash
+"/Applications/Python 3.14/Install Certificates.command"
 ```
 
 Edit `.env` and set `DISCORD_TOKEN` to your bot token. Optionally set
@@ -20,10 +47,6 @@ Install the bot in your server with the `bot` and `applications.commands`
 scopes and channel permissions to view the channel, send messages, and embed
 links. This bot uses slash commands and buttons; privileged member and
 message-content intents are not required.
-
-```powershell
-.\.venv\Scripts\python.exe main.py
-```
 
 Commands sync once on startup in the configured scope. Changing between guild
 and global registration does not remove commands previously registered in the
