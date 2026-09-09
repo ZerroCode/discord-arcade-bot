@@ -46,8 +46,8 @@ Interpreter** and choose `.venv\Scripts\python.exe` for this project.
 
 Run `/arcade info` to post a directory of available games, grouped into
 **1v1 Activities** and **Solo Activities**. Currently, tic-tac-toe, Connect 4,
-Battleship, and Rock Paper Scissors are available as 1v1 games. Wordle and Hangman are
-available under Solo Activities.
+Battleship, and Rock Paper Scissors are available as 1v1 games. Wordle, Hangman,
+and Minesweeper are available under Solo Activities.
 
 Run `/arcade`, select a game, and choose another server member(if applicable). 
 Only that member can accept or decline. Accepting replaces the challenge with a 
@@ -74,7 +74,7 @@ discord-arcade-bot/
 |   ├── rockpaperscissors.py   # Hidden choices, buttons, and round results
 |   ├── wordle.py              # Word lists, duplicate-letter scoring, and solo UI
 |   ├── hangman.py             # Hidden words, letter menus, and game logic
-|   ├── minesweeper.py         # Currently empty; implement when needed
+|   ├── minesweeper.py         # Safe mine placement, flood reveal, flags, and solo button UI
 |   ├── wordbomb.py            # Currently empty; implement when needed
 │   └── views.py               # Shared challenge and timeout handling
 ├── data/

@@ -15,6 +15,7 @@ from games.rockpaperscissors import ChallengeView as RockPaperScissorsChallengeV
 from games.views import ChallengeView as BaseChallengeView
 from games.wordle import WordleView
 from games.hangman import HangmanView
+from games.minesweeper import MinesweeperView
 
 if TYPE_CHECKING:
     from bot import GameBot
@@ -62,6 +63,19 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
         await self._challenge(interaction, opponent, RockPaperScissorsChallengeView, "Rock Paper Scissors")
 
     # Solo game commands
+    @app_commands.command(description="Play a solo game of Minesweeper.", extras={"activity": "solo"})
+    async def minesweeper(self, interaction: discord.Interaction) -> None:
+        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message("Start games in a server.", ephemeral=True)
+            return
+        view = MinesweeperView(interaction.user)
+        try:
+            await interaction.response.send_message(embed=view.make_embed(), view=view)
+            view.message = await interaction.original_response()
+        except Exception:
+            view.close()
+            raise
+
     @app_commands.command(description="Play a solo game of Hangman.", extras={"activity": "solo"})
     async def hangman(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
