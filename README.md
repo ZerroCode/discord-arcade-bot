@@ -98,7 +98,6 @@ discord-arcade-bot/
 |   ├── wordle.py              # Word lists, duplicate-letter scoring, and solo UI
 |   ├── hangman.py             # Hidden words, letter menus, and game logic
 |   ├── minesweeper.py         # Safe mine placement, flood reveal, flags, and solo button UI
-|   ├── wordbomb.py            # Currently empty; implement when needed
 │   └── views.py               # Shared challenge and timeout handling
 ├── data/
 │   ├── wordle/                # Wordle official word lists and allowed guesses

@@ -3,7 +3,6 @@
 from collections import Counter
 from collections.abc import Collection
 from functools import lru_cache
-import logging
 from pathlib import Path
 import random
 import re
@@ -73,7 +72,9 @@ def score_guess(answer: str, guess: str) -> tuple[str, ...]:
 class WordleGame:
     def __init__(self, answer: str, allowed_guesses: Collection[str]):
         self.answer = normalize_word(answer)
-        self.allowed_guesses = frozenset(allowed_guesses) | {self.answer}
+        allowed = frozenset(allowed_guesses)
+        # Normal games share the cached dictionary instead of copying it per player.
+        self.allowed_guesses = allowed if self.answer in allowed else allowed | {self.answer}
         self.guesses: list[str] = []
 
     @property
@@ -124,10 +125,13 @@ class WordleView(TimedView):
         if game is None:
             answers, allowed = load_word_lists()
             game = WordleGame(random.SystemRandom().choice(answers), allowed)
-        super().__init__(command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Wordle - Timed Out")
+        super().__init__(
+            command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Wordle - Timed Out",
+            user_ids=(player.id,),
+            unauthorized_message=f"This is someone else's game. Start your own with {COMMAND}.",
+        )
         self.player = player
         self.game = game
-        self.timed_out = False
         self.guess_modal: _GuessModal | None = None
 
     def close(self) -> None:
@@ -158,19 +162,6 @@ class WordleView(TimedView):
             embed.add_field(name="Guesses", value=f"{len(self.game.guesses) + 1}/{MAX_GUESSES}")
             embed.set_footer(text=f"Expires after 5 minutes of inactivity.")
         return embed
-
-    async def allowed(self, interaction: discord.Interaction) -> bool:
-        error = None
-        if interaction.user.id != self.player.id:
-            error = "This is someone else's game. Start your own with /arcade wordle."
-        elif self.closed or self.is_finished():
-            error = "This game has ended."
-        elif self._lock.locked():
-            error = "A guess is being updated. Please try again."
-        if error:
-            await interaction.response.send_message(error, ephemeral=True)
-            return False
-        return True
 
     @discord.ui.button(label="Guess", style=discord.ButtonStyle.primary)
     async def guess(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -203,20 +194,7 @@ class WordleView(TimedView):
             else:
                 # Modal submissions don't refresh the parent view's timeout.
                 self.timeout = GAME_TIMEOUT
-            try:
-                await interaction.response.edit_message(embed=self.make_embed(), view=self)
-            except Exception:
-                self.close()
-                raise
+            await self.update_board(interaction)
 
-    async def on_timeout(self) -> None:
-        async with self._lock:
-            if self.closed:
-                return
-            self.timed_out = True
-            self.close()
-            if self.message is not None:
-                try:
-                    await self.message.edit(embed=self.make_embed(), view=self)
-                except discord.HTTPException:
-                    logging.getLogger(__name__).exception("Could not update expired Wordle message")
+    def make_timeout_embed(self) -> discord.Embed:
+        return self.make_embed()

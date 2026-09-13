@@ -57,7 +57,10 @@ class _ColumnButton(discord.ui.Button):
 class Connect4View(TimedView):
 
     def __init__(self, player1: discord.Member, player2: discord.Member):
-        super().__init__(command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Connect 4 - Timed Out")
+        super().__init__(
+            command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Connect 4 - Timed Out",
+            user_ids=(player1.id, player2.id),
+        )
         self.player1 = player1
         self.player2 = player2
         self.marks = {player1.id: RED, player2.id: YELLOW}
@@ -85,16 +88,9 @@ class Connect4View(TimedView):
         return embed
 
     async def on_column_click(self, interaction: discord.Interaction, column: int) -> None:
-        if interaction.user.id not in self.marks:
-            await interaction.response.send_message("You're not part of this game.", ephemeral=True)
-            return
-        if self._lock.locked():
-            await interaction.response.send_message("A move is being updated. Please try again.", ephemeral=True)
+        if not await self.allowed(interaction):
             return
         async with self._lock:
-            if self.closed or self.is_finished():
-                await interaction.response.send_message("This game has ended.", ephemeral=True)
-                return
             if interaction.user.id != self.current_turn:
                 await interaction.response.send_message("It's not your turn.", ephemeral=True)
                 return
@@ -109,11 +105,7 @@ class Connect4View(TimedView):
                 self.close()
             else:
                 self.current_turn = self.player2.id if self.current_turn == self.player1.id else self.player1.id
-            try:
-                await interaction.response.edit_message(embed=self.make_embed(), view=self)
-            except Exception:
-                self.close()
-                raise
+            await self.update_board(interaction)
 
 
 class ChallengeView(BaseChallengeView):

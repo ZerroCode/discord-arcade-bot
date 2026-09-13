@@ -1,6 +1,6 @@
 """Hangman rules and a solo Discord game with a letter-entry form."""
 
-import logging
+from functools import lru_cache
 from pathlib import Path
 import random
 import re
@@ -15,7 +15,13 @@ WORDLIST_PATH = Path(__file__).resolve().parent.parent / "data" / "hangman" / "w
 
 
 def load_words(path: Path = WORDLIST_PATH) -> tuple[str, ...]:
-    """Read one word per line for each new game, ignoring blanks and duplicates."""
+    """Reuse validated words until the file changes, ignoring blanks and duplicates."""
+    stat = path.stat()
+    return _load_words(path, stat.st_mtime_ns, stat.st_size)
+
+
+@lru_cache(maxsize=8)
+def _load_words(path: Path, modified_ns: int, size: int) -> tuple[str, ...]:
     words = dict.fromkeys(
         line.strip().lower()
         for line in path.read_text(encoding="utf-8-sig").splitlines()
@@ -96,10 +102,13 @@ class HangmanView(TimedView):
     def __init__(self, player: discord.Member, *, game: HangmanGame | None = None):
         if game is None:
             game = HangmanGame(random.SystemRandom().choice(load_words()))
-        super().__init__(command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Hangman - Timed Out")
+        super().__init__(
+            command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Hangman - Timed Out",
+            user_ids=(player.id,),
+            unauthorized_message=f"This is someone else's game. Start your own with {COMMAND}.",
+        )
         self.player = player
         self.game = game
-        self.timed_out = False
         self.guess_modal: _GuessModal | None = None
 
     def close(self) -> None:
@@ -136,18 +145,6 @@ class HangmanView(TimedView):
             embed.set_footer(text="Expires after 5 minutes of inactivity.")
         return embed
 
-    async def allowed(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.player.id:
-            await interaction.response.send_message(f"This is someone else's game. Start your own with {COMMAND}.", ephemeral=True)
-            return False
-        if self.closed or self.is_finished():
-            await interaction.response.send_message("This game has ended.", ephemeral=True)
-            return False
-        if self._lock.locked():
-            await interaction.response.send_message("A guess is being updated. Please try again.", ephemeral=True)
-            return False
-        return True
-
     @discord.ui.button(label="Guess", style=discord.ButtonStyle.primary)
     async def guess(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if not await self.allowed(interaction):
@@ -179,20 +176,7 @@ class HangmanView(TimedView):
             else:
                 # Modal submissions don't refresh the parent view's timeout.
                 self.timeout = GAME_TIMEOUT
-            try:
-                await interaction.response.edit_message(embed=self.make_embed(), view=self)
-            except Exception:
-                self.close()
-                raise
+            await self.update_board(interaction)
 
-    async def on_timeout(self) -> None:
-        async with self._lock:
-            if self.closed:
-                return
-            self.timed_out = True
-            self.close()
-            if self.message is not None:
-                try:
-                    await self.message.edit(embed=self.make_embed(), view=self)
-                except discord.HTTPException:
-                    logging.getLogger(__name__).exception("Could not update expired Hangman message")
+    def make_timeout_embed(self) -> discord.Embed:
+        return self.make_embed()

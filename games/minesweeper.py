@@ -1,6 +1,5 @@
 """Minesweeper rules and a solo Discord button board."""
 
-import logging
 import random
 
 import discord
@@ -109,11 +108,14 @@ class _CellButton(discord.ui.Button):
 
 class MinesweeperView(TimedView):
     def __init__(self, player: discord.Member, *, game: MinesweeperGame | None = None):
-        super().__init__(command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Minesweeper - Timed Out")
+        super().__init__(
+            command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Minesweeper - Timed Out",
+            user_ids=(player.id,),
+            unauthorized_message=f"This is someone else's game. Start your own with {COMMAND}.",
+        )
         self.player = player
         self.game = game if game is not None else MinesweeperGame()
         self.flag_mode = False
-        self.timed_out = False
         for row in range(ROWS):
             for column in range(COLUMNS):
                 self.add_item(_CellButton((row, column)))
@@ -179,32 +181,11 @@ class MinesweeperView(TimedView):
             embed.set_footer(text="Expires after 5 minutes of inactivity.")
         return embed
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        # Reject spectators before discord.py refreshes this game's timeout.
-        return await self.allowed(interaction)
-
-    async def allowed(self, interaction: discord.Interaction) -> bool:
-        error = None
-        if interaction.user.id != self.player.id:
-            error = f"This is someone else's game. Start your own with {COMMAND}."
-        elif self.closed or self.is_finished():
-            error = "This game has ended."
-        elif self._lock.locked():
-            error = "A move is being updated. Please try again."
-        if error:
-            await interaction.response.send_message(error, ephemeral=True)
-            return False
-        return True
-
     async def _update_message(self, interaction: discord.Interaction) -> None:
         if self.game.finished:
             self.close()
         self.refresh_buttons()
-        try:
-            await interaction.response.edit_message(embed=self.make_embed(), view=self)
-        except Exception:
-            self.close()
-            raise
+        await self.update_board(interaction)
 
     async def on_cell_click(self, interaction: discord.Interaction, cell: Cell) -> None:
         if not await self.allowed(interaction):
@@ -228,15 +209,6 @@ class MinesweeperView(TimedView):
             self.flag_mode = not self.flag_mode
             await self._update_message(interaction)
 
-    async def on_timeout(self) -> None:
-        async with self._lock:
-            if self.closed:
-                return
-            self.timed_out = True
-            self.close()
-            self.refresh_buttons()
-            if self.message is not None:
-                try:
-                    await self.message.edit(embed=self.make_embed(), view=self)
-                except discord.HTTPException:
-                    logging.getLogger(__name__).exception("Could not update expired Minesweeper message")
+    def make_timeout_embed(self) -> discord.Embed:
+        self.refresh_buttons()
+        return self.make_embed()

@@ -30,7 +30,10 @@ class _ChoiceButton(discord.ui.Button):
 
 class RockPaperScissorsView(TimedView):
     def __init__(self, player1: discord.Member, player2: discord.Member):
-        super().__init__(command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Rock Paper Scissors - Timed Out")
+        super().__init__(
+            command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Rock Paper Scissors - Timed Out",
+            user_ids=(player1.id, player2.id),
+        )
         self.player1, self.player2 = player1, player2
         self.choices: dict[int, str] = {}
         for choice in BEATS:
@@ -65,16 +68,9 @@ class RockPaperScissorsView(TimedView):
 
     async def on_choice(self, interaction: discord.Interaction, choice: str) -> None:
         user_id = interaction.user.id
-        if user_id not in (self.player1.id, self.player2.id):
-            await interaction.response.send_message("You're not part of this game.", ephemeral=True)
-            return
-        if self._lock.locked():
-            await interaction.response.send_message("A choice is being updated. Please try again.", ephemeral=True)
+        if not await self.allowed(interaction):
             return
         async with self._lock:
-            if self.closed or self.is_finished():
-                await interaction.response.send_message("This game has ended.", ephemeral=True)
-                return
             if user_id in self.choices:
                 await interaction.response.send_message("Waiting for your opponent.", ephemeral=True)
                 return
@@ -84,11 +80,7 @@ class RockPaperScissorsView(TimedView):
             self.choices[user_id] = choice
             if len(self.choices) == 2:
                 self.close()
-            try:
-                await interaction.response.edit_message(embed=self.make_embed(), view=self)
-            except Exception:
-                self.close()
-                raise
+            await self.update_board(interaction)
 
 
 class ChallengeView(BaseChallengeView):

@@ -1,5 +1,6 @@
 """The single owner of /arcade; add new game commands to this cog."""
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 import logging
 
@@ -12,7 +13,7 @@ from games.tictactoe import ChallengeView as TicTacToeChallengeView
 from games.connect4 import ChallengeView as Connect4ChallengeView
 from games.battleship import ChallengeView as BattleshipChallengeView
 from games.rockpaperscissors import ChallengeView as RockPaperScissorsChallengeView
-from games.views import ChallengeView as BaseChallengeView
+from games.views import ChallengeView as BaseChallengeView, TimedView
 from games.wordle import WordleView
 from games.hangman import HangmanView
 from games.minesweeper import MinesweeperView
@@ -65,52 +66,29 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
     # Solo game commands
     @app_commands.command(description="Play a solo game of Minesweeper.", extras={"activity": "solo"})
     async def minesweeper(self, interaction: discord.Interaction) -> None:
-        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
-            await interaction.response.send_message("Start games in a server.", ephemeral=True)
-            return
-        view = MinesweeperView(interaction.user)
-        try:
-            await interaction.response.send_message(embed=view.make_embed(), view=view)
-            view.message = await interaction.original_response()
-        except Exception:
-            view.close()
-            raise
+        await self._solo(interaction, MinesweeperView, "Minesweeper")
 
     @app_commands.command(description="Play a solo game of Hangman.", extras={"activity": "solo"})
     async def hangman(self, interaction: discord.Interaction) -> None:
-        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
-            await interaction.response.send_message("Start games in a server.", ephemeral=True)
-            return
-        try:
-            view = HangmanView(interaction.user)
-        except (OSError, ValueError):
-            logging.getLogger(__name__).exception("Could not load Hangman word list")
-            await interaction.response.send_message("Hangman's word list is unavailable. Please try again later.", ephemeral=True)
-            return
-        try:
-            await interaction.response.send_message(embed=view.make_embed(), view=view)
-            view.message = await interaction.original_response()
-        except Exception:
-            view.close()
-            raise
+        await self._solo(interaction, HangmanView, "Hangman")
 
     @app_commands.command(description="Play a solo game of Wordle.", extras={"activity": "solo"})
     async def wordle(self, interaction: discord.Interaction) -> None:
+        await self._solo(interaction, WordleView, "Wordle")
+
+    async def _solo(
+        self, interaction: discord.Interaction, view_type: Callable[[discord.Member], TimedView], game_name: str,
+    ) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message("Start games in a server.", ephemeral=True)
             return
         try:
-            view = WordleView(interaction.user)
+            view = view_type(interaction.user)
         except (OSError, ValueError):
-            logging.getLogger(__name__).exception("Could not load Wordle word lists")
-            await interaction.response.send_message("Wordle's word lists are unavailable. Please try again later.", ephemeral=True)
+            logging.getLogger(__name__).exception("Could not start %s", game_name)
+            await interaction.response.send_message(f"{game_name} is unavailable. Please try again later.", ephemeral=True)
             return
-        try:
-            await interaction.response.send_message(embed=view.make_embed(), view=view)
-            view.message = await interaction.original_response()
-        except Exception:
-            view.close()
-            raise
+        await view.send(interaction)
 
     async def _challenge(
         self, interaction: discord.Interaction, opponent: discord.Member,
@@ -133,12 +111,7 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
             color=discord.Color.blurple(),
         )
         embed.set_footer(text="Challenge expires after 2 minutes.")
-        try:
-            await interaction.response.send_message(embed=embed, view=view)
-            view.message = await interaction.original_response()
-        except Exception:
-            view.close()
-            raise
+        await view.send(interaction, embed=embed)
 
 
 async def setup(bot: "GameBot") -> None:

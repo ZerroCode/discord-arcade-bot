@@ -1,5 +1,6 @@
 """Battleship rules and Discord views, independent of command registration."""
 
+from functools import lru_cache
 import random
 import re
 
@@ -11,6 +12,17 @@ COMMAND = "/arcade battleship"
 SIZE = 10
 SHIPS = (("Carrier", 5), ("Battleship", 4), ("Cruiser", 3), ("Submarine", 3), ("Destroyer", 2))
 Cell = tuple[int, int]
+
+
+@lru_cache(maxsize=len(SHIPS))
+def _ship_placements(length: int) -> tuple[frozenset[Cell], ...]:
+    """Share immutable board geometry across fleets and shuffles."""
+    return tuple(
+        frozenset((row + i * dr, column + i * dc) for i in range(length))
+        for dr, dc in ((0, 1), (1, 0))
+        for row in range(SIZE - (length - 1) * dr)
+        for column in range(SIZE - (length - 1) * dc)
+    )
 
 
 def parse_coordinate(value: str) -> Cell:
@@ -29,13 +41,7 @@ class Fleet:
         occupied: set[Cell] = set()
         for name, length in SHIPS:
             # Enumerate legal placements so generation cannot spin on collisions.
-            placements = []
-            for dr, dc in ((0, 1), (1, 0)):
-                for row in range(SIZE - (length - 1) * dr):
-                    for column in range(SIZE - (length - 1) * dc):
-                        cells = frozenset((row + i * dr, column + i * dc) for i in range(length))
-                        if not cells & occupied:
-                            placements.append(cells)
+            placements = [cells for cells in _ship_placements(length) if cells.isdisjoint(occupied)]
             cells = rng.choice(placements)
             self.ships[name] = cells
             occupied.update(cells)
@@ -104,7 +110,10 @@ class _ShotModal(discord.ui.Modal, title="Battleship - Fire a shot"):
 
 class BattleshipView(TimedView):
     def __init__(self, player1: discord.Member, player2: discord.Member):
-        super().__init__(command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Battleship - Timed Out")
+        super().__init__(
+            command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Battleship - Timed Out",
+            user_ids=(player1.id, player2.id),
+        )
         self.player1, self.player2 = player1, player2
         self.fleets = {player1.id: Fleet(), player2.id: Fleet()}
         self.ready_players: set[int] = set()
@@ -174,14 +183,10 @@ class BattleshipView(TimedView):
         )
 
     async def allowed(self, interaction: discord.Interaction, *, firing: bool = False) -> bool:
+        if not await super().allowed(interaction):
+            return False
         error = None
-        if interaction.user.id not in self.fleets:
-            error = "You're not part of this game."
-        elif self.closed or self.is_finished():
-            error = "This game has ended."
-        elif self._lock.locked():
-            error = "A move is being updated. Please try again."
-        elif firing and len(self.ready_players) < 2:
+        if firing and len(self.ready_players) < 2:
             error = "Both players must be ready before firing."
         elif firing and interaction.user.id != self.current_turn:
             error = "It's not your turn."
@@ -189,13 +194,6 @@ class BattleshipView(TimedView):
             await interaction.response.send_message(error, ephemeral=True)
             return False
         return True
-
-    async def update_board(self, interaction: discord.Interaction) -> None:
-        try:
-            await interaction.response.edit_message(embed=self.make_embed(), view=self)
-        except Exception:
-            self.close()
-            raise
 
     @discord.ui.button(label="My fleet", style=discord.ButtonStyle.secondary)
     async def my_fleet(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
