@@ -2,7 +2,9 @@
 
 import discord
 
-from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, TimedView
+from storage.database import MatchStore
+
+from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, RecordedGameView
 
 COMMAND = "/arcade tictactoe"
 WINNING_LINES = (
@@ -27,9 +29,10 @@ class _CellButton(discord.ui.Button):
         await self.view.on_cell_click(interaction, self, self.index)
 
 
-class TicTacToeView(TimedView):
-    def __init__(self, player1: discord.Member, player2: discord.Member):
+class TicTacToeView(RecordedGameView):
+    def __init__(self, player1: discord.Member, player2: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(
+            store=store, guild_id=guild_id,
             command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Tic Tac Toe - Timed Out",
             user_ids=(player1.id, player2.id),
         )
@@ -77,15 +80,23 @@ class TicTacToeView(TimedView):
             button.label = mark
             button.style = discord.ButtonStyle.primary if mark == "X" else discord.ButtonStyle.danger
             button.disabled = True
-            if check_winner(self.board):
+            winner = check_winner(self.board)
+            if winner:
                 self.close()
             else:
                 self.current_turn = self.player2.id if mark == "X" else self.player1.id
             await self.update_board(interaction)
+            if winner:
+                winner_id = None if winner == "Draw" else (
+                    self.player1.id if winner == "X" else self.player2.id
+                )
+                await self.record_result(interaction, winner_id)
 
 class ChallengeView(BaseChallengeView):
-    def __init__(self, challenger: discord.Member, opponent: discord.Member):
+    def __init__(self, challenger: discord.Member, opponent: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(challenger, opponent, command=COMMAND)
+        self.store = store
+        self.guild_id = guild_id
 
     def create_game(self) -> TicTacToeView:
-        return TicTacToeView(self.challenger, self.opponent)
+        return TicTacToeView(self.challenger, self.opponent, store=self.store, guild_id=self.guild_id)

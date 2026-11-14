@@ -6,7 +6,9 @@ import re
 
 import discord
 
-from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, TimedView
+from storage.database import MatchStore
+
+from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, RecordedGameView
 
 COMMAND = "/arcade battleship"
 SIZE = 10
@@ -108,9 +110,10 @@ class _ShotModal(discord.ui.Modal, title="Battleship - Fire a shot"):
         await self.game.on_error(interaction, error, self)
 
 
-class BattleshipView(TimedView):
-    def __init__(self, player1: discord.Member, player2: discord.Member):
+class BattleshipView(RecordedGameView):
+    def __init__(self, player1: discord.Member, player2: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(
+            store=store, guild_id=guild_id,
             command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Battleship - Timed Out",
             user_ids=(player1.id, player2.id),
         )
@@ -263,11 +266,15 @@ class BattleshipView(TimedView):
                 # Modal submissions don't dispatch through the parent View.
                 self.timeout = GAME_TIMEOUT
             await self.update_board(interaction)
+            if self.winner is not None:
+                await self.record_result(interaction, self.winner)
 
 
 class ChallengeView(BaseChallengeView):
-    def __init__(self, challenger: discord.Member, opponent: discord.Member):
+    def __init__(self, challenger: discord.Member, opponent: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(challenger, opponent, command=COMMAND)
+        self.store = store
+        self.guild_id = guild_id
 
     def create_game(self) -> BattleshipView:
-        return BattleshipView(self.challenger, self.opponent)
+        return BattleshipView(self.challenger, self.opponent, store=self.store, guild_id=self.guild_id)

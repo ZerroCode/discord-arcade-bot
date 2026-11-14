@@ -2,7 +2,9 @@
 
 import discord
 
-from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, TimedView
+from storage.database import MatchStore
+
+from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, RecordedGameView
 
 COMMAND = "/arcade connect4"
 ROWS = 6
@@ -54,10 +56,11 @@ class _ColumnButton(discord.ui.Button):
         await self.view.on_column_click(interaction, self.column)
 
 
-class Connect4View(TimedView):
+class Connect4View(RecordedGameView):
 
-    def __init__(self, player1: discord.Member, player2: discord.Member):
+    def __init__(self, player1: discord.Member, player2: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(
+            store=store, guild_id=guild_id,
             command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Connect 4 - Timed Out",
             user_ids=(player1.id, player2.id),
         )
@@ -101,16 +104,24 @@ class Connect4View(TimedView):
                 return
             for button in self.children:
                 button.disabled = self.board[0][button.column] is not None
-            if check_winner(self.board):
+            winner = check_winner(self.board)
+            if winner:
                 self.close()
             else:
                 self.current_turn = self.player2.id if self.current_turn == self.player1.id else self.player1.id
             await self.update_board(interaction)
+            if winner:
+                winner_id = None if winner == "Draw" else (
+                    self.player1.id if winner == RED else self.player2.id
+                )
+                await self.record_result(interaction, winner_id)
 
 
 class ChallengeView(BaseChallengeView):
-    def __init__(self, challenger: discord.Member, opponent: discord.Member):
+    def __init__(self, challenger: discord.Member, opponent: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(challenger, opponent, command=COMMAND)
+        self.store = store
+        self.guild_id = guild_id
 
     def create_game(self) -> Connect4View:
-        return Connect4View(self.challenger, self.opponent)
+        return Connect4View(self.challenger, self.opponent, store=self.store, guild_id=self.guild_id)

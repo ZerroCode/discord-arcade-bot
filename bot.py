@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 
 from config import Config
+from storage.database import MatchStore
 
 logger = logging.getLogger(__name__)
 EXTENSIONS = ("games.arcade",)
@@ -17,11 +18,13 @@ class GameBot(commands.Bot):
         intents = discord.Intents.none()
         intents.guilds = True
         super().__init__(command_prefix="!", intents=intents, help_command=None)
+        self.store = MatchStore(config.mongodb_uri, config.mongodb_database)
         self.command_guild = (
             discord.Object(id=config.guild_id) if config.guild_id is not None else None
         )
 
     async def setup_hook(self) -> None:
+        await self.store.connect()
         for extension in EXTENSIONS:
             await self.load_extension(extension)
         synced = await self.tree.sync(guild=self.command_guild)
@@ -30,3 +33,9 @@ class GameBot(commands.Bot):
 
     async def on_ready(self) -> None:
         logger.info("Logged in as %s", self.user)
+
+    async def close(self) -> None:
+        try:
+            await super().close()
+        finally:
+            await self.store.close()

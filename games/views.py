@@ -2,6 +2,11 @@
 
 import asyncio
 import logging
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from pymongo.errors import PyMongoError
+from storage.database import MatchStore
 
 import discord
 
@@ -102,6 +107,36 @@ class TimedView(discord.ui.View):
                 await self.message.edit(view=self)
             except discord.HTTPException:
                 logging.getLogger(type(self).__module__).exception("Could not disable failed game controls")
+
+
+class RecordedGameView(TimedView):
+    """Shared result persistence for completed competitive games."""
+
+    def __init__(self, *, store: MatchStore, guild_id: int, **kwargs):
+        super().__init__(**kwargs)
+        self.store = store
+        self.guild_id = guild_id
+        self.match_id = str(uuid4())
+        self._result_attempted = False
+
+    async def record_result(self, interaction: discord.Interaction, winner_id: int | None) -> None:
+        # Call only after a terminal move and a successful board update, under _lock.
+        if self._result_attempted:
+            return
+        self._result_attempted = True
+        try:
+            await self.store.record_match(
+                match_id=self.match_id, guild_id=self.guild_id,
+                game=self.command.removeprefix("/arcade "),
+                player_ids=(self.player1.id, self.player2.id), winner_id=winner_id,
+                completed_at=datetime.now(timezone.utc),
+            )
+        except PyMongoError:
+            logging.getLogger(type(self).__module__).exception("Could not save match %s", self.match_id)
+            await interaction.followup.send(
+                "Game finished, but saving its result could not be confirmed. Stats may be incomplete.",
+                ephemeral=True,
+            )
 
 
 class ChallengeView(TimedView):

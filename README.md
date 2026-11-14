@@ -30,14 +30,6 @@ cp .env.example .env
 python main.py
 ```
 
-#### macOS certificate setup
-
-If Python was installed from python.org, install its trusted certificates once:
-
-```bash
-"/Applications/Python 3.14/Install Certificates.command"
-```
-
 Edit `.env` and set `DISCORD_TOKEN` to your bot token. Optionally set
 `DISCORD_GUILD_ID` to register commands in one development server. Leave it
 empty to register global commands. Existing environment variables take
@@ -51,6 +43,46 @@ message-content intents are not required.
 Commands sync once on startup in the configured scope. Changing between guild
 and global registration does not remove commands previously registered in the
 other scope; remove obsolete registrations separately if switching scopes.
+
+## MongoDB setup
+
+A reachable MongoDB server is required at startup. Use a local MongoDB instance
+or an Atlas cluster. Configure `.env`:
+
+```dotenv
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DATABASE=discord_arcade
+```
+
+For Atlas, replace the URI with your cluster's connection string, configure
+network access for the bot host, and use a database user with read/write access
+to the selected database. Keep credentials in `.env`; do not commit them.
+The bot uses PyMongo's async client, checks connectivity, and creates the match
+query indexes before registering commands. Database operations have a five-second
+timeout. The client closes when the bot shuts down.
+
+Completed **tic-tac-toe, Connect 4, Battleship, and Rock Paper Scissors** matches
+are tracked. Solo games are excluded from competitive stats and total wins.
+Each match is stored in `matches` with its unique `_id`, server ID, player IDs,
+game, winner (or draw), and UTC completion time. Discord IDs are strings.
+The unique `_id` prevents retries from adding a second copy of a match.
+Challenges, declines, expired games, and failed board updates do not add results.
+
+- `/arcade stats [member] [game]` shows a player's combined totals across all
+  four 1v1 games in this server; omitting the member shows your own totals.
+  Choose a game to see only that game's wins, losses, draws, and matches played.
+- `/arcade leaderboard [game]` shows the server's top ten players by combined
+  1v1 wins, or by a selected game. Rankings use wins, then draws, then fewest
+  losses. Player ID breaks remaining ties.
+
+Previously recorded tic-tac-toe results count automatically; no migration is
+needed. Matches played before recording was enabled cannot be reconstructed.
+
+Stats are computed from match history. There are no separately updated counters.
+If saving fails, the finished board remains visible and the player receives a
+notice that saving could not be confirmed. There is no durable retry queue;
+an outage or process exit between finishing a game and saving can leave a result
+unrecorded. Active boards still do not survive restarts.
 
 ## Running in VS Code on Windows
 
@@ -91,20 +123,19 @@ discord-arcade-bot/
 ├── games/
 │   ├── __init__.py
 │   ├── arcade.py              # Owns /arcade and registers game commands
-│   ├── tictactoe.py           # Tic-tac-toe board, winning lines, and button UI
-|   ├── battleship.py          # Battleship fleets, private setup, and shot UI
-│   ├── connect4.py            # Connect 4 gravity, full columns, and winning lines
-|   ├── rockpaperscissors.py   # Hidden choices, buttons, and round results
-|   ├── wordle.py              # Word lists, duplicate-letter scoring, and solo UI
-|   ├── hangman.py             # Hidden words, letter menus, and game logic
-|   ├── minesweeper.py         # Safe mine placement, flood reveal, flags, and solo button UI
+│   ├── tictactoe.py           
+|   ├── battleship.py          
+│   ├── connect4.py            
+|   ├── rockpaperscissors.py   
+|   ├── wordle.py              
+|   ├── hangman.py             
+|   ├── minesweeper.py         
 │   └── views.py               # Shared challenge and timeout handling
 ├── data/
 │   ├── wordle/                # Wordle official word lists and allowed guesses
 │   └── hangman/               # Hangman word lists
 ├── storage/
-│   ├── database.py            # Placeholder for reading and updating saved data
-│   └── arcade.sqlite3         # Local player database (ignored by Git)
+│   └── database.py            # Async MongoDB match history and statistics
 ├── .env.example
 ├── .gitignore
 └── requirements.txt

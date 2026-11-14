@@ -7,6 +7,8 @@ import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
+from pymongo.errors import PyMongoError
+from storage.database import COMPETITIVE_GAMES
 
 # Import the ChallengeView classes for each game
 from games.tictactoe import ChallengeView as TicTacToeChallengeView
@@ -24,6 +26,55 @@ if TYPE_CHECKING:
 # This cog is the single owner of the /arcade command group. Add new game commands to this cog.
 @app_commands.guild_only()
 class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade games"):
+    def __init__(self, bot: "GameBot"):
+        super().__init__()
+        self.store = bot.store
+
+    @app_commands.command(description="Show total 1v1 stats or filter by game in this server.")
+    @app_commands.choices(game=[app_commands.Choice(name=name, value=key) for key, name in COMPETITIVE_GAMES.items()])
+    async def stats(self, interaction: discord.Interaction, member: discord.Member | None = None, game: str | None = None) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("View stats in a server.", ephemeral=True)
+            return
+        await interaction.response.defer()
+        member = member or interaction.user
+        try:
+            stats = await self.store.get_player_stats(interaction.guild_id, member.id, game=game)
+        except PyMongoError:
+            logging.getLogger(__name__).exception("Could not read player stats")
+            await interaction.followup.send("Stats are unavailable. Please try again later.")
+            return
+        title = COMPETITIVE_GAMES.get(game, "All 1v1 Games")
+        embed = discord.Embed(title=f"{title} — Server Stats", description=member.mention)
+        for label, key in (("Played", "played"), ("Total wins", "wins"), ("Losses", "losses"), ("Draws", "draws")):
+            embed.add_field(name=label, value=str(stats[key]))
+        embed.set_footer(text="Completed 1v1 matches only. Solo games and timeouts are excluded.")
+        await interaction.followup.send(embed=embed)
+
+    @app_commands.command(description="Show this server's top 10 players by total 1v1 wins, or filter by game.")
+    @app_commands.choices(game=[app_commands.Choice(name=name, value=key) for key, name in COMPETITIVE_GAMES.items()])
+    async def leaderboard(self, interaction: discord.Interaction, game: str | None = None) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("View leaderboards in a server.", ephemeral=True)
+            return
+        await interaction.response.defer()
+        try:
+            rows = await self.store.get_leaderboard(interaction.guild_id, game=game)
+        except PyMongoError:
+            logging.getLogger(__name__).exception("Could not read leaderboard")
+            await interaction.followup.send("The leaderboard is unavailable. Please try again later.")
+            return
+        lines = [
+            f"{rank}. <@{row['_id']}> — {row['wins']}W / {row['losses']}L / {row['draws']}D"
+            for rank, row in enumerate(rows, 1)
+        ]
+        title = COMPETITIVE_GAMES.get(game, "All 1v1 Games")
+        embed = discord.Embed(
+            title=f"{title} — Server Leaderboard",
+            description="\n".join(lines) or "No completed matches yet. Start a 1v1 game with /arcade!",
+        )
+        embed.set_footer(text="Ranked by wins, then draws, then fewest losses. Completed 1v1 matches only.")
+        await interaction.followup.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
 
     # Arcade command to show available /arcade commands
     @app_commands.command(description="Show the bot's available /arcade commands.")
@@ -104,7 +155,7 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
             await interaction.response.send_message("You can't challenge yourself.", ephemeral=True)
             return
 
-        view = view_type(interaction.user, opponent)
+        view = view_type(interaction.user, opponent, store=self.store, guild_id=interaction.guild_id)
         embed = discord.Embed(
             title=f"{game_name} Challenge",
             description=f"{interaction.user.mention} has challenged {opponent.mention} to {game_name}.",
@@ -116,6 +167,6 @@ class Arcade(commands.GroupCog, group_name="arcade", group_description="Arcade g
 
 async def setup(bot: "GameBot") -> None:
     if bot.command_guild is None:
-        await bot.add_cog(Arcade())
+        await bot.add_cog(Arcade(bot))
     else:
-        await bot.add_cog(Arcade(), guild=bot.command_guild)
+        await bot.add_cog(Arcade(bot), guild=bot.command_guild)

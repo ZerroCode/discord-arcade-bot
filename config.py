@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 class Config:
     token: str = field(repr=False)
     guild_id: int | None = None
+    mongodb_uri: str = field(default="mongodb://localhost:27017", repr=False)
+    mongodb_database: str = "discord_arcade"
 
 
 def load_config() -> Config:
@@ -29,4 +31,10 @@ def load_config() -> Config:
         if not 0 < guild_id < 2**64:
             raise ValueError("DISCORD_GUILD_ID must be a valid positive Discord ID.")
 
-    return Config(token=token, guild_id=guild_id)
+    uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017").strip()
+    database = os.getenv("MONGODB_DATABASE", "discord_arcade").strip()
+    if not uri.startswith(("mongodb://", "mongodb+srv://")):
+        raise ValueError("MONGODB_URI must be a MongoDB connection string.")
+    if not database or any(c in database for c in '/\\. "$*<>:|?\x00'):
+        raise ValueError("MONGODB_DATABASE must be a valid nonempty database name.")
+    return Config(token=token, guild_id=guild_id, mongodb_uri=uri, mongodb_database=database)

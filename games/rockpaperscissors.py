@@ -2,7 +2,9 @@
 
 import discord
 
-from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, TimedView
+from storage.database import MatchStore
+
+from games.views import ChallengeView as BaseChallengeView, GAME_TIMEOUT, RecordedGameView
 
 COMMAND = "/arcade rockpaperscissors"
 ROCK, PAPER, SCISSORS = "rock", "paper", "scissors"
@@ -28,9 +30,10 @@ class _ChoiceButton(discord.ui.Button):
         await self.view.on_choice(interaction, self.choice)
 
 
-class RockPaperScissorsView(TimedView):
-    def __init__(self, player1: discord.Member, player2: discord.Member):
+class RockPaperScissorsView(RecordedGameView):
+    def __init__(self, player1: discord.Member, player2: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(
+            store=store, guild_id=guild_id,
             command=COMMAND, timeout=GAME_TIMEOUT, timeout_title="Rock Paper Scissors - Timed Out",
             user_ids=(player1.id, player2.id),
         )
@@ -81,11 +84,17 @@ class RockPaperScissorsView(TimedView):
             if len(self.choices) == 2:
                 self.close()
             await self.update_board(interaction)
+            if len(self.choices) == 2:
+                winner = check_winner(self.choices[self.player1.id], self.choices[self.player2.id])
+                winner_id = None if winner == 0 else (self.player1.id if winner == 1 else self.player2.id)
+                await self.record_result(interaction, winner_id)
 
 
 class ChallengeView(BaseChallengeView):
-    def __init__(self, challenger: discord.Member, opponent: discord.Member):
+    def __init__(self, challenger: discord.Member, opponent: discord.Member, *, store: MatchStore, guild_id: int):
         super().__init__(challenger, opponent, command=COMMAND)
+        self.store = store
+        self.guild_id = guild_id
 
     def create_game(self) -> RockPaperScissorsView:
-        return RockPaperScissorsView(self.challenger, self.opponent)
+        return RockPaperScissorsView(self.challenger, self.opponent, store=self.store, guild_id=self.guild_id)
