@@ -21,15 +21,15 @@ def load_config() -> Config:
     if not token:
         raise ValueError("DISCORD_TOKEN is required. Set it in the environment or .env.")
 
-    raw_guild_id = os.getenv("DISCORD_GUILD_ID", "").strip()
+    raw_guild_id = os.getenv("GUILD_ID", "").strip()
     guild_id = None
     if raw_guild_id:
         try:
             guild_id = int(raw_guild_id)
         except ValueError:
-            raise ValueError("DISCORD_GUILD_ID must be a positive integer or left empty.") from None
+            raise ValueError("GUILD_ID must be a positive integer or left empty.") from None
         if not 0 < guild_id < 2**64:
-            raise ValueError("DISCORD_GUILD_ID must be a valid positive Discord ID.")
+            raise ValueError("GUILD_ID must be a valid positive Discord ID.")
 
     uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017").strip()
     database = os.getenv("MONGODB_DATABASE", "discord_arcade").strip()

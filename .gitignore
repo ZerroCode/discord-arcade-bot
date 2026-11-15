@@ -1,8 +1,5 @@
+# Discord Arcade Bot Git Ignore File
 discord.log
-
-# Local player database and SQLite journal/WAL companion files
-storage/arcade.sqlite3
-storage/arcade.sqlite3-*
 
 # Byte-compiled / optimized / DLL files
 games/__pycache__
