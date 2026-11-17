@@ -84,6 +84,52 @@ notice that saving could not be confirmed. There is no durable retry queue;
 an outage or process exit between finishing a game and saving can leave a result
 unrecorded. Active boards still do not survive restarts.
 
+## Tests
+
+Run from the repository root after installing `requirements.txt`:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The game and command tests need neither a Discord token nor MongoDB. They cover
+wins for either player, supported draws, duplicate and competing final clicks,
+challenge acceptance/decline/expiry, spectators, timeouts, failed board updates,
+and database failure notices. Each game runs through its actual callbacks with
+Discord responses mocked.
+
+To run the five real MongoDB integration tests as well, start a test MongoDB
+server and explicitly set `TEST_MONGODB_URI`:
+
+```bash
+# macOS / Linux
+TEST_MONGODB_URI=mongodb://127.0.0.1:27017 python -m unittest discover -s tests -v
+```
+
+```powershell
+# Windows PowerShell
+$env:TEST_MONGODB_URI = "mongodb://127.0.0.1:27017"
+python -m unittest discover -s tests -v
+```
+
+Use a test server and an account allowed to create and drop databases. Each test
+creates its own `arcade_test_<random UUID>` database and drops it during cleanup.
+Tests never load `.env` or use `MONGODB_DATABASE`. If `TEST_MONGODB_URI` is absent,
+the integration tests are explicitly skipped; if it is set but unavailable,
+they fail. The integration tests check all four game callbacks against MongoDB,
+concurrent duplicate inserts, combined and per-game stats, server separation,
+solo exclusions, and leaderboard ordering and limits.
+
+### Discord smoke check
+
+With the bot running in a development server, use two accounts to complete each
+1v1 game. Check `/arcade stats` for both players and `/arcade leaderboard`, both
+with and without a game filter. Each win should add one win for the winner and
+one loss for the opponent; a draw should add one draw for each player. Decline a
+challenge and let another expire, confirming neither changes totals. Verify a
+spectator cannot move, and restart the bot to confirm saved totals remain.
+These live Discord checks are manual; the automated suite does not log into Discord.
+
 ## Running in VS Code on Windows
 
 Open this project folder in VS Code after creating `.venv` with the setup
